@@ -162,6 +162,15 @@
          <button data-move="${id}|1" ${i === n - 1 ? "disabled" : ""} title="Правее">▶</button>`;
     return `<div class="asset">${media}<div class="ab">${tools}</div></div>`;
   }
+  function musicHtml(j) {
+    if (j.kind !== "ad") return "";
+    const mu = j.music || {}, st = state.music_styles || {};
+    if (!photoEditable(j)) return mu.name ? `<div class="vinfo">🎵 ${esc(mu.name)}</div>` : "";
+    return `<div class="when" style="margin:0 0 8px"><span class="hint">🎵 Музыка:</span>
+      <select data-music="${j.id}" ${mu.own ? "disabled title='Берутся ваши треки из library\\olizzi\\music'" : ""}>${Object.entries(st).map(([k, v]) => `<option value="${k}" ${mu.style === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>
+      <button class="btn ghost small" data-reroll="${j.id}" title="Завод сочинит другую мелодию в этом же стиле">🔀 другая мелодия</button>
+      ${mu.own ? `<span class="hint">${esc(mu.name || "")}</span>` : ""}</div>`;
+  }
   function addTileHtml(j) {
     if (!photoEditable(j) || j.kind === "slides" || (j.assets || []).length >= 10) return "";
     return `<div class="asset add"><button data-pick="${j.id}|add">+ ${j.kind === "ad" ? "фото или клип" : "фото"} из библиотеки</button>
@@ -203,7 +212,8 @@
       ${j.error ? `<div class="err">${esc(j.error)}</div>` : ""}
       ${j.concept?.idea ? `<div class="idea" style="border:none;padding:0;margin-bottom:8px">💡 ${esc(j.concept.idea)}</div>` : ""}
       ${j.final_video ? `<div class="assets" style="grid-template-columns:minmax(180px,240px)"><div class="asset"><div class="media" style="aspect-ratio:9/16"><video src="${f(j, j.final_video)}" controls playsinline preload="metadata"></video></div></div></div>
-        ${j.video_info ? `<div class="vinfo">Reels: ${j.video_info.w}×${j.video_info.h}, ${j.video_info.dur} сек, ${j.video_info.mb} МБ — готово для Instagram</div>` : ""}
+        ${j.video_info ? `<div class="vinfo">Reels: ${j.video_info.w}×${j.video_info.h}, ${j.video_info.dur} сек, ${j.video_info.mb} МБ${j.video_info.db != null ? " · 🔊 со звуком" : ""} — готово для Instagram</div>` : ""}
+        ${musicHtml(j)}
         <div class="hint" style="margin:-4px 0 4px">Кадры видео по порядку${photoEditable(j) ? " — меняйте, видео пересоберётся само" : ""}:</div>` : ""}
       ${j.kind === "slides" ? slidesHtml(j) : (j.assets?.length || photoEditable(j) ? `<div class="assets">${(j.assets || []).map(a => assetHtml(j, a)).join("")}${addTileHtml(j)}</div>` : "")}
       ${j.caption || review ? `<div class="edit">
@@ -325,6 +335,11 @@
   }
   $("jobs").addEventListener("change", async (e) => {
     const t = e.target;
+    if (t.dataset.music) {
+      try { await api(`/api/jobs/${t.dataset.music}/music`, { style: t.value }); toast("Музыка: " + t.selectedOptions[0].text + " — видео пересоберётся (~1 мин)"); load(true); }
+      catch (err) { toast(err.message); }
+      return;
+    }
     if (t.dataset.up) {  // своё фото/клип: в библиотеку бренда → в пост
       const file = t.files[0], jid = t.dataset.up; t.value = "";
       if (!file) return;
@@ -351,6 +366,13 @@
       ss.disabled = true;
       try { await api(`/api/jobs/${ss.dataset.slidesave}/slides`, { slides }); editing = false; toast("Слайды перерисованы"); load(true); }
       catch (err) { toast(err.message); ss.disabled = false; }
+      return;
+    }
+    const rr = t.closest("[data-reroll]");
+    if (rr) {
+      rr.disabled = true;
+      try { await api(`/api/jobs/${rr.dataset.reroll}/music`, { reroll: true }); toast("Сочиняю другую мелодию — видео пересоберётся (~1 мин)"); load(true); }
+      catch (err) { toast(err.message); rr.disabled = false; }
       return;
     }
     const pk = t.closest("[data-pick]");
