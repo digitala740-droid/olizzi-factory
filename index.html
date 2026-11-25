@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta name="robots" content="noindex, nofollow">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Контент-завод Olizzi</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🫒</text></svg>">
+<style>
+  :root {
+    --bg: #f6f6f8; --card: #fff; --text: #1d1d22; --muted: #74747f; --line: #e6e6ec; --soft: #f1f1f5;
+    --accent: #5b4cf0; --accent-soft: #ecebff; --ok: #1f9d55; --ok-soft: #e3f6ea; --warn: #b26b00; --warn-soft: #fff3dc;
+    --err: #c62f3b; --err-soft: #fde8ea; --shadow: 0 1px 2px rgba(20,20,40,.05), 0 4px 16px rgba(20,20,40,.05); --r: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141418; --card: #1d1d23; --text: #ececf1; --muted: #9a9aa6; --line: #2e2e37; --soft: #25252d;
+      --accent: #8b7ff7; --accent-soft: #2a2645; --ok: #4cc47f; --ok-soft: #173225; --warn: #f0b04a; --warn-soft: #3a2d14;
+      --err: #f0717b; --err-soft: #3b1d21; --shadow: 0 1px 2px rgba(0,0,0,.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 "Segoe UI", Roboto, Arial, sans-serif; }
+  input, select, button, textarea { font: inherit; color: inherit; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 20px 16px 60px; }
+  header { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 16px; }
+  h1 { font-size: 24px; margin: 0; flex: 1; }
+  .pill { font-size: 12.5px; padding: 4px 10px; border-radius: 999px; background: var(--soft); color: var(--muted); }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); } .pill.err { background: var(--err-soft); color: var(--err); }
+  .pill.busy { background: var(--accent-soft); color: var(--accent); }
+  .grid { display: grid; grid-template-columns: 380px 1fr; gap: 16px; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 16px; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  label.f { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 10px; }
+  label.f input, label.f textarea, label.f select, .edit textarea, .edit input {
+    display: block; width: 100%; margin-top: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); outline: none; color: var(--text); }
+  label.f input:focus, label.f textarea:focus, .edit textarea:focus, .edit input:focus { border-color: var(--accent); }
+  textarea { resize: vertical; }
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 10px; }
+  .seg button { flex: 1; border: 1px solid var(--line); background: var(--soft); border-radius: 10px; padding: 8px; cursor: pointer; font-size: 13.5px; }
+  .seg button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .drop { border: 2px dashed var(--line); border-radius: 12px; padding: 14px; text-align: center; color: var(--muted); cursor: pointer; font-size: 13.5px; }
+  .drop { display: block; position: relative; }
+  .vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+  /* кнопки карточки всегда под рукой: прилипают к низу экрана, пока карточка видна */
+  .job .acts.main { position: sticky; bottom: 0; z-index: 3; background: var(--card); margin: 10px -16px -16px; padding: 10px 16px;
+    border-top: 1px solid var(--line); border-radius: 0 0 var(--r) var(--r); box-shadow: 0 -6px 12px -8px rgba(0,0,0,.15); }
+  .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+  .thumbs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .thumbs span { position: relative; } .thumbs img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); display: block; }
+  .thumbs button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: none; background: var(--text); color: var(--bg); cursor: pointer; font-size: 11px; line-height: 1; }
+  .checks { display: flex; gap: 16px; flex-wrap: wrap; margin: 6px 0 12px; font-size: 14px; }
+  .checks input { accent-color: var(--accent); width: 16px; height: 16px; vertical-align: -3px; margin-right: 4px; }
+  .btn { border: none; border-radius: 10px; padding: 10px 16px; font-weight: 700; cursor: pointer; background: var(--accent); color: #fff; }
+  .btn.small { padding: 6px 12px; font-size: 13px; }
+  .btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  .btn.ok { background: var(--ok); } .btn.danger { background: transparent; color: var(--err); border: 1px solid var(--line); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .wide { width: 100%; }
+  .hint { font-size: 12.5px; color: var(--muted); }
+  .msg { font-size: 13px; color: var(--err); min-height: 18px; margin-top: 6px; }
+  .tabs { display: flex; gap: 4px; background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tab { flex: 1; border: none; background: transparent; border-radius: 9px; padding: 8px 10px; font-weight: 700; cursor: pointer; color: var(--muted); white-space: nowrap; }
+  .tab.on { background: var(--card); color: var(--text); box-shadow: var(--shadow); }
+  .tab b { display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 12px; margin-left: 4px; }
+  .job + .job { margin-top: 12px; }
+  .jh { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
+  .jh .t { font-weight: 700; font-size: 16px; flex: 1; min-width: 0; }
+  .badge { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--soft); color: var(--muted); }
+  .st { font-size: 12.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+  .st.working, .st.queued, .st.approved, .st.publishing { background: var(--accent-soft); color: var(--accent); }
+  .st.review, .st.scheduled { background: var(--warn-soft); color: var(--warn); }
+  .st.published { background: var(--ok-soft); color: var(--ok); }
+  .st.error { background: var(--err-soft); color: var(--err); } .st.rejected { background: var(--soft); color: var(--muted); }
+  .stage { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .stage .spin { display: inline-block; width: 10px; height: 10px; border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%; animation: s 1s linear infinite; margin-right: 6px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  .err { background: var(--err-soft); color: var(--err); border-radius: 10px; padding: 8px 10px; font-size: 13.5px; margin-bottom: 8px; white-space: pre-wrap; }
+  .idea { font-size: 13.5px; margin-bottom: 8px; }
+  .assets { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 10px; }
+  .asset { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--soft); }
+  .asset .media { aspect-ratio: var(--ar, 4/5); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12.5px; text-align: center; padding: 0; }
+  .asset img, .asset video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
+  .asset .ab { display: flex; gap: 4px; padding: 6px; flex-wrap: wrap; }
+  .asset .ab button { flex: 1; border: 1px solid var(--line); background: var(--card); border-radius: 8px; font-size: 12px; padding: 4px; cursor: pointer; }
+  details.p { padding: 0 6px 6px; font-size: 11.5px; color: var(--muted); } details.p summary { cursor: pointer; }
+  .edit { display: grid; gap: 8px; margin-bottom: 10px; }
+  .edit label { font-size: 12px; color: var(--muted); }
+  .acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .acts .grow { flex: 1; }
+  .links a { color: var(--accent); font-weight: 700; margin-right: 12px; font-size: 13.5px; }
+  .empty { color: var(--muted); padding: 30px 10px; text-align: center; }
+  .refs { display: flex; gap: 4px; } .refs img { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; border: 1px solid var(--line); }
+  dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--text); width: min(560px, 92vw); padding: 20px; max-height: 88vh; overflow-y: auto; overscroll-behavior: contain; }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+  .prof { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .prof button { border: 1px solid var(--line); background: var(--soft); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 13.5px; }
+  .prof button.on { border-color: var(--accent); background: var(--accent); color: #fff; font-weight: 700; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin: -4px 0 12px; }
+  .filters button { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; cursor: pointer; color: var(--muted); }
+  .filters button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .slides-ed { display: grid; gap: 6px; margin-bottom: 10px; }
+  .slides-ed .sl { display: grid; grid-template-columns: 28px 1fr; gap: 6px; align-items: start; }
+  .slides-ed .sl b { color: var(--muted); font-size: 12px; padding-top: 8px; text-align: right; }
+  .slides-ed input, .slides-ed textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); color: var(--text); outline: none; }
+  .slides-ed textarea { margin-top: 4px; }
+  .idea { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .idea + .idea { margin-top: 8px; }
+  .idea .it { font-weight: 700; } .idea .ib { font-size: 13px; margin: 4px 0; white-space: pre-wrap; } .idea .iw { font-size: 12px; color: var(--muted); }
+  .pcard { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .pcard .row2 { gap: 8px; }
+  dialog.wide { width: min(760px, 94vw); }
+  .ideas-list { max-height: 60vh; overflow: auto; margin-top: 10px; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 90px); background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-weight: 600; transition: transform .25s; z-index: 20; max-width: 92vw; }
+  .toast.show { transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<style>
+  .when { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .when input[type=datetime-local] { padding: 6px 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--soft); color: var(--text); }
+  .when.unset input[type=datetime-local] { border-color: var(--warn); background: var(--warn-soft); }
+  .planbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; font-size: 13.5px; }
+  .planbar input { padding: 6px 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--soft); color: var(--text); }
+  .planbar input[type=number] { width: 70px; }
+  .storyimg { width: 90px; aspect-ratio: 9/16; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); display: block; }
+  .row-story { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+  .row-story .edit { flex: 1; margin: 0; }
+  .wk p { margin: 4px 0; font-size: 13.5px; }
+  .tag { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+</style>
+<div class="wrap">
+  <header>
+    <h1>🫒 Контент-завод Olizzi</h1>
+    <span class="pill" id="aiPill">Claude: …</span>
+    <span class="pill" id="brPill">Браузер: …</span>
+    <span class="pill" id="netPill" hidden></span>
+    <button class="btn ghost small" id="loginBtn" title="Открыть Chrome завода с Instagram бренда">🔑 Войти в Instagram</button>
+    <button class="btn ghost small" id="setBtn">⚙ Настройки</button>
+    <button class="btn ghost small" id="logoutBtn" hidden>Выйти</button>
+  </header>
+  <div class="err" id="offline" hidden>Завод не отвечает: компьютер с заводом выключен, спит или без интернета. Данные появятся, как только он снова будет в сети.</div>
+
+  <div class="grid">
+    <aside>
+      <section class="card wk" style="margin-bottom:16px">
+        <h2>🗓 Посты на неделю</h2>
+        <p id="wkInfo" class="hint"></p>
+        <p id="wkNote"></p>
+        <div class="err" id="wkErr" hidden></div>
+        <div class="acts" style="margin-top:8px">
+          <button class="btn small" id="wkRun">Сделать пачку сейчас</button>
+          <span class="grow"></span>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+        <p id="libInfo" class="hint"></p>
+        <label class="btn ghost small" for="libFile" style="display:inline-block;margin-top:4px">+ Фото в библиотеку</label>
+        <input type="file" id="libFile" accept="image/*" multiple class="vh">
+      </section>
+
+      <section class="card">
+        <h2 style="display:flex;justify-content:space-between;align-items:center">Новый пост вручную
+          <button class="btn ghost small" id="ideasBtn" title="Claude предложит темы">💡 Идеи</button></h2>
+        <div class="seg" id="kindSeg">
+          <button data-kind="post" class="on">🖼 Фото-пост</button>
+          <button data-kind="slides">📝 Карусель с текстом</button>
+          <button data-kind="ad">🎬 Видео</button>
+        </div>
+        <label class="f">Тема<input id="title" autocomplete="off" placeholder="Салат с Olizzi Basil за 5 минут"></label>
+        <label class="f">Что рассказать / пожелания
+          <textarea id="brief" rows="4" placeholder="Рецепт, акцент на аромат базилика, подача на летнем столе."></textarea></label>
+        <label class="drop" id="drop" for="file">📷 Свои фото (необязательно) — нажмите, перетащите или вставьте<br>
+          <span class="hint">без фото Claude сам подберёт их из библиотеки бренда</span>
+          <input type="file" id="file" accept="image/*" multiple class="vh"></label>
+        <div class="thumbs" id="thumbs"></div>
+        <label class="f" id="refsNoteBox" hidden style="margin-top:8px">Что на фото
+          <input id="refsNote" placeholder="Наш стенд на выставке в Алматы" autocomplete="off"></label>
+        <div class="row2" style="margin-top:10px">
+          <label class="f">Язык<select id="lang"><option value="ru">Русский</option><option value="kz">Казахский</option></select></label>
+          <label class="f"><span id="countLbl">Фото</span><select id="count"></select></label>
+        </div>
+        <label class="f" id="aspectBox">Формат кадра<select id="aspect">
+          <option value="4:5">4:5 — лента</option><option value="1:1">1:1 — квадрат</option></select></label>
+        <div class="checks"><label><input type="checkbox" id="story" checked>Репост в сторис</label>
+          <span class="hint" id="igAcc"></span></div>
+        <button class="btn wide" id="createBtn">Запустить</button>
+        <div class="msg" id="msg"></div>
+        <p class="hint" id="howHint"></p>
+      </section>
+    </aside>
+
+    <main>
+      <div class="tabs" id="tabs"></div>
+      <div id="planbar"></div>
+      <div id="jobs"></div>
+    </main>
+  </div>
+</div>
+
+<dialog id="setDlg" class="wide">
+  <h2>Настройки</h2>
+  <h3 style="font-size:14px;margin:0 0 8px">🗓 Посты на неделю — создаются сами</h3>
+  <label class="checks"><span><input type="checkbox" id="wEnabled">Каждую неделю готовить пачку постов</span></label>
+  <div class="row2">
+    <label class="f">Постов в неделю<input type="number" id="wCount" min="1" max="40"></label>
+    <label class="f">Из них на казахском<input type="number" id="wKz" min="0" max="40"></label>
+  </div>
+  <div class="row2">
+    <label class="f">Кликбейтных<input type="number" id="wCb" min="0" max="40"></label>
+    <label class="f">Когда готовить<span style="display:flex;gap:6px">
+      <select id="wDay"><option value="0">Пн</option><option value="1">Вт</option><option value="2">Ср</option><option value="3">Чт</option>
+        <option value="4">Пт</option><option value="5">Сб</option><option value="6">Вс</option></select>
+      <select id="wHour"></select></span></label>
+  </div>
+  <p class="hint" style="margin-top:-4px">Готовые посты ждут в «Запланировано» без даты — модератор ставит каждому день и время.</p>
+  <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
+  <h3 style="font-size:14px;margin:0 0 8px">🫒 Бренд — Claude читает это в каждом посте</h3>
+  <label class="f">Аккаунт Instagram<input id="pIg" placeholder="olizzi_kazakhstan"></label>
+  <label class="f">О бренде<textarea id="pAbout" rows="3"></textarea></label>
+  <label class="f">Темы<textarea id="pTopics" rows="2"></textarea></label>
+  <label class="f">Тон<input id="pVoice"></label>
+  <div class="row2">
+    <label class="f">Хештеги (русские посты)<input id="pTags"></label>
+    <label class="f">Хештеги (казахские посты)<input id="pTagsKz"></label>
+  </div>
+  <label class="checks"><span><input type="checkbox" id="pStory">Каждый пост — с репостом в сторис</span></label>
+  <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
+  <label class="checks"><span><input type="checkbox" id="sVis">Показывать окно Chrome во время публикации (для отладки)</span></label>
+  <div class="acts"><span class="grow"></span><button class="btn ghost small" id="sCancel">Закрыть</button><button class="btn small" id="sSave">Сохранить</button></div>
+</dialog>
+
+<dialog id="ideasDlg" class="wide">
+  <h2>💡 Идеи постов</h2>
+  <div style="display:flex;gap:8px">
+    <input id="ideasHint" placeholder="Пожелание, например: к Новому году / рецепты / для мам" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--soft);color:var(--text)">
+    <button class="btn small" id="ideasGo">Предложить</button>
+  </div>
+  <div class="ideas-list" id="ideasList"><p class="hint">Claude предложит 8 тем и не повторит недавние.</p></div>
+  <div class="acts" style="margin-top:12px"><span class="grow"></span><button class="btn ghost small" id="ideasClose">Закрыть</button></div>
+</dialog>
+
+<dialog id="authDlg" style="width:min(360px,92vw)">
+  <form id="authForm">
+    <h2>🫒 Контент-завод Olizzi</h2>
+    <label class="f">Логин<input id="authUser" autocomplete="username" autocapitalize="off" required></label>
+    <label class="f">Пароль<input id="authPass" type="password" autocomplete="current-password" required></label>
+    <button class="btn wide" type="submit">Войти</button>
+    <div class="msg" id="authMsg"></div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// адрес завода (туннель) меняется при перезапуске — завод сам пишет его в api.json этого репозитория
+(async () => {
+  let api = "";
+  try {
+    const r = await fetch("https://api.github.com/repos/digitala740-droid/olizzi-factory/contents/api.json?ref=main",
+      { headers: { Accept: "application/vnd.github.raw+json" }, cache: "no-store" });
+    if (r.ok) api = (await r.json()).api || "";
+  } catch (e) {}
+  if (!api) { try { api = (await (await fetch("api.json?" + Date.now(), { cache: "no-store" })).json()).api || ""; } catch (e) {} }
+  window.CF_API = api || "https://offline.invalid";
+  const s = document.createElement("script"); s.src = "app.js?v=261125125340"; document.body.appendChild(s);
+})();
+</script>
+</body>
+</html>
