@@ -46,18 +46,18 @@
   // ── форма ──
   function drawForm() {
     document.querySelectorAll("#kindSeg button").forEach(b => b.classList.toggle("on", b.dataset.kind === kind));
-    const n = kind === "slides" ? [3, 4, 5, 6, 7, 8] : kind === "ad" ? [3, 4, 5, 6, 7, 8, 10] : [1, 2, 3, 4, 5];
+    const n = kind === "slides" ? [3, 4, 5, 6, 7, 8] : kind === "ad" ? [3, 4, 5, 6] : [1, 2, 3, 4, 5];
     const cur = +$("count").value || (kind === "slides" ? 5 : kind === "ad" ? 5 : 3);
     $("count").innerHTML = n.map(x => `<option ${x === cur ? "selected" : ""}>${x}</option>`).join("");
     if (!n.includes(cur)) $("count").value = String(kind === "post" ? 3 : 5);
-    $("countLbl").textContent = kind === "slides" ? "Слайдов (без обложки)" : "Фото";
+    $("countLbl").textContent = kind === "slides" ? "Слайдов (без обложки)" : kind === "ad" ? "Кадров в видео" : "Фото";
     $("count").disabled = !!refs.length && kind !== "slides";
     $("aspectBox").hidden = kind === "ad";
     $("refsNoteBox").hidden = !refs.length;
     $("igAcc").textContent = P().instagram ? "→ @" + P().instagram : "аккаунт Instagram не указан (⚙)";
     $("howHint").textContent = (kind === "slides"
       ? "Claude напишет слайды и подпись и подберёт фото для обложки, текст на слайды завод наложит сам — его можно править."
-      : kind === "ad" ? "Claude подберёт фото и напишет подпись, завод соберёт из фото видео 9:16 с плавным приближением (Reels)."
+      : kind === "ad" ? "Claude подберёт фото и видеоклипы бренда и напишет подпись, завод соберёт Reels под Instagram: 9:16, 1080×1920, 10–20 сек, до 30 МБ."
       : "Claude напишет подпись и подберёт фото из библиотеки бренда.") + " После одобрения пост ждёт в «Запланировано», пока вы не поставите дату.";
   }
   $("kindSeg").onclick = (e) => { const b = e.target.closest("[data-kind]"); if (b) { kind = b.dataset.kind; $("count").value = ""; drawForm(); } };
@@ -95,13 +95,16 @@
 
   // ── библиотека и неделя ──
   $("libFile").onchange = async (e) => {
-    const files = [...e.target.files].filter(f => f.type.startsWith("image/")).slice(0, 30);
+    const files = [...e.target.files].filter(f => /^(image|video)\//.test(f.type)).slice(0, 30);
     e.target.value = "";
     if (!files.length) return;
+    const big = files.find(f => f.type.startsWith("video/") && f.size > 60e6);
+    if (big) { toast(`«${big.name}» больше 60 МБ — сократите или сожмите видео`); return; }
     try {
+      toast("Загружаю…");
       const data = await Promise.all(files.map(async f => ({ name: f.name, data: await readFile(f) })));
       const r = await api("/api/library", { files: data });
-      toast(`Добавлено фото: ${r.added}. Claude опишет их за пару минут`); load(true);
+      toast(`Добавлено: ${r.added}. Claude опишет и проверит их на запреты за пару минут`); lib = null; load(true);
     } catch (err) { toast(err.message); }
   };
   $("wkRun").onclick = async () => {
@@ -112,12 +115,13 @@
   function drawWeek() {
     const w = state.settings.weekly, wk = state.week, lib = wk.library;
     $("wkInfo").textContent = w.enabled
-      ? `Каждую неделю в ${DAYS[w.weekday]} в ${pad(w.hour)}:00 — ${w.count} постов (казахских: ${w.kz}, кликбейтных: ${w.clickbait}), каждый с репостом в сторис. Следующая пачка: ${human(wk.next + ":00")}.`
+      ? `Каждую неделю в ${DAYS[w.weekday]} в ${pad(w.hour)}:00 — ${w.count} постов: ${w.video || 0} видео Reels и ${w.count - (w.video || 0)} фото-постов (казахских: ${w.kz}, кликбейтных: ${w.clickbait}), каждый с репостом в сторис. Следующая пачка: ${human(wk.next + ":00")}.`
       : "Автоматическая пачка выключена (⚙ Настройки).";
     $("wkNote").innerHTML = wk.busy ? `<span class="spin" style="display:inline-block;width:10px;height:10px;border:2px solid var(--accent);border-right-color:transparent;border-radius:50%;animation:s 1s linear infinite;margin-right:6px"></span>${esc(wk.note)}` : esc(wk.note || "");
     $("wkErr").hidden = !wk.error; $("wkErr").textContent = wk.error || "";
     $("wkRun").disabled = wk.busy;
-    $("libInfo").textContent = `Библиотека фото: ${lib.total}` + (lib.left ? ` · Claude описывает новые: осталось ${lib.left}` : " · все описаны");
+    $("libInfo").textContent = `Библиотека: фото ${lib.total}, можно в посты ${lib.allowed}` + (lib.banned ? `, под запретом ${lib.banned}` : "")
+      + (lib.clips ? ` · видеоклипов ${lib.clips_allowed} из ${lib.clips}` : "") + (lib.describing ? ` · ${lib.note || "Claude проверяет…"}` : "");
   }
 
   // ── очередь ──
@@ -139,17 +143,34 @@
   };
   const editable = (j) => ["review", "scheduled", "error", "rejected"].includes(j.status);
 
+  const photoEditable = (j) => editable(j) && !j.refs?.length;
+  const srcs = (j) => (j.assets || []).map(a => a.src || "");
+  const MINP = { post: 1, ad: 2, slides: 1 };
   function assetHtml(j, a) {
     const busy = ["queued", "working", "publishing", "approved"].includes(j.status);
-    const media = a.image ? `<div class="media"><a href="${f(j, a.image)}" target="_blank" style="display:contents"><img src="${f(j, a.image)}" alt="Фото ${a.n + 1}" loading="lazy"></a></div>`
+    const clip = (a.src || "").startsWith("video/");
+    const media = a.image ? `<div class="media"><a href="${f(j, a.image)}" target="_blank" style="display:contents"><img src="${f(j, a.image)}" alt="Кадр ${a.n + 1}" loading="lazy"></a>${clip ? `<span class="clipmark">🎬 клип</span>` : ""}</div>`
       : `<div class="media">${busy ? "готовится…" : "нет"}</div>`;
-    const swap = editable(j) && !j.refs?.length && a.src ? `<div class="ab"><button data-redo="${j.id}|${a.n}" title="Claude подберёт другое фото из библиотеки">↻ другое фото</button></div>` : "";
-    return `<div class="asset">${media}${swap}</div>`;
+    if (!photoEditable(j)) return `<div class="asset">${media}</div>`;
+    const n = j.assets.length, i = a.n, id = `${j.id}|${i}`;
+    const tools = j.kind === "slides"
+      ? `<button data-redo="${id}" title="Claude подберёт другое фото">↻</button><button data-pick="${id}" title="Выбрать фото из библиотеки">🖼 выбрать</button>`
+      : `<button data-move="${id}|-1" ${i === 0 ? "disabled" : ""} title="Левее">◀</button>
+         <button data-redo="${id}" ${a.src ? "" : "disabled"} title="Claude подберёт другое">↻</button>
+         <button data-pick="${id}" title="Заменить фото из библиотеки">🖼</button>
+         <button data-rm="${id}" ${n <= (MINP[j.kind] || 1) ? "disabled" : ""} title="Убрать из поста">✕</button>
+         <button data-move="${id}|1" ${i === n - 1 ? "disabled" : ""} title="Правее">▶</button>`;
+    return `<div class="asset">${media}<div class="ab">${tools}</div></div>`;
+  }
+  function addTileHtml(j) {
+    if (!photoEditable(j) || j.kind === "slides" || (j.assets || []).length >= 10) return "";
+    return `<div class="asset add"><button data-pick="${j.id}|add">+ ${j.kind === "ad" ? "фото или клип" : "фото"} из библиотеки</button>
+      <label>📤 загрузить своё<input type="file" data-up="${j.id}" accept="image/*${j.kind === "ad" ? ",video/mp4,video/quicktime,video/webm" : ""}" class="vh"></label></div>`;
   }
 
   function slidesHtml(j) {
     const ed = editable(j);
-    const pics = (j.slide_files || []).map((n, i) => `<div class="asset"><div class="media"><a href="${f(j, n, j.slides_v)}" target="_blank" style="display:contents"><img src="${f(j, n, j.slides_v)}" alt="Слайд ${i + 1}" loading="lazy"></a></div>${i === 0 && ed && !j.refs?.length ? `<div class="ab"><button data-redo="${j.id}|0">↻ другое фото обложки</button></div>` : ""}</div>`).join("");
+    const pics = (j.slide_files || []).map((n, i) => `<div class="asset"><div class="media"><a href="${f(j, n, j.slides_v)}" target="_blank" style="display:contents"><img src="${f(j, n, j.slides_v)}" alt="Слайд ${i + 1}" loading="lazy"></a></div>${i === 0 && ed && !j.refs?.length ? `<div class="ab"><button data-redo="${j.id}|0" title="Claude подберёт другое фото">↻ обложка</button><button data-pick="${j.id}|0" title="Выбрать фото обложки из библиотеки">🖼 выбрать</button></div>` : ""}</div>`).join("");
     const box = ed && j.slides?.length ? `<details style="margin-bottom:10px"><summary class="hint" style="cursor:pointer">✎ Текст слайдов</summary><div class="slides-ed" data-slides="${j.id}" style="margin-top:8px">
         ${j.slides.map((s, i) => `<div class="sl"><b>${i === 0 ? "обл." : i}</b><div>
           <input data-st="title" value="${esc(s.title)}" placeholder="Заголовок">
@@ -182,9 +203,11 @@
       ${j.error ? `<div class="err">${esc(j.error)}</div>` : ""}
       ${j.concept?.idea ? `<div class="idea" style="border:none;padding:0;margin-bottom:8px">💡 ${esc(j.concept.idea)}</div>` : ""}
       ${j.final_video ? `<div class="assets" style="grid-template-columns:minmax(180px,240px)"><div class="asset"><div class="media" style="aspect-ratio:9/16"><video src="${f(j, j.final_video)}" controls playsinline preload="metadata"></video></div></div></div>
-        <div class="hint" style="margin:-4px 0 4px">Фото в видео:</div>` : ""}
-      ${j.kind === "slides" ? slidesHtml(j) : (j.assets?.length ? `<div class="assets">${j.assets.map(a => assetHtml(j, a)).join("")}</div>` : "")}
+        ${j.video_info ? `<div class="vinfo">Reels: ${j.video_info.w}×${j.video_info.h}, ${j.video_info.dur} сек, ${j.video_info.mb} МБ — готово для Instagram</div>` : ""}
+        <div class="hint" style="margin:-4px 0 4px">Кадры видео по порядку${photoEditable(j) ? " — меняйте, видео пересоберётся само" : ""}:</div>` : ""}
+      ${j.kind === "slides" ? slidesHtml(j) : (j.assets?.length || photoEditable(j) ? `<div class="assets">${(j.assets || []).map(a => assetHtml(j, a)).join("")}${addTileHtml(j)}</div>` : "")}
       ${j.caption || review ? `<div class="edit">
+        <label>Название (видно только здесь)<input data-ed="title" maxlength="120" value="${esc(j.title)}" ${ro}></label>
         <label>Подпись Instagram<textarea data-ed="caption" rows="6" ${ro}>${esc(j.caption)}</textarea></label>
         <label>Хештеги<input data-ed="hashtags" value="${esc((j.hashtags || []).join(" "))}" ${ro}></label>
       </div>` : ""}
@@ -287,12 +310,33 @@
     const jid = t.closest("[data-job]").dataset.job;
     const job = state.jobs.find(x => x.id === jid) || {};
     const old = t.dataset.ed === "hashtags" ? (job.hashtags || []).join(" ") : job[t.dataset.ed] || "";
+    if (t.dataset.ed === "title" && !t.value.trim()) { t.value = old; return; }
     if (t.value === old) return;
     try { await api(`/api/jobs/${jid}/edit`, { [t.dataset.ed]: t.value }); if (t.dataset.ed === "story_title") toast("Сторис перерисована"); } catch (err) { toast(err.message); }
     load(true);
   });
+  async function setPhotos(jid, list, msg) {
+    const job = state.jobs.find(x => x.id === jid);
+    if (list.some(x => !x)) { toast("У старого фото нет источника в библиотеке — сначала замените его через 🖼"); return; }
+    try {
+      await api(`/api/jobs/${jid}/photos`, { srcs: list }); editing = false;
+      toast(msg + (job?.kind === "ad" ? " — видео пересобирается (~1 мин)" : "")); lib = null; load(true);
+    } catch (err) { toast(err.message); }
+  }
   $("jobs").addEventListener("change", async (e) => {
     const t = e.target;
+    if (t.dataset.up) {  // своё фото/клип: в библиотеку бренда → в пост
+      const file = t.files[0], jid = t.dataset.up; t.value = "";
+      if (!file) return;
+      if (file.size > 60e6) { toast("Файл больше 60 МБ"); return; }
+      try {
+        toast("Загружаю…");
+        const r = await api("/api/library", { files: [{ name: file.name, data: await readFile(file) }] });
+        const job = state.jobs.find(x => x.id === jid);
+        await setPhotos(jid, [...srcs(job), ...r.names], "Добавлено в пост и в библиотеку");
+      } catch (err) { toast(err.message); }
+      return;
+    }
     if (!t.dataset.when || !t.value) return;
     try { await api(`/api/jobs/${t.dataset.when}/time`, { publish_at: t.value }); editing = false; toast("Время публикации: " + human(t.value.replace("T", " "))); load(true); }
     catch (err) { toast(err.message); }
@@ -308,6 +352,22 @@
       try { await api(`/api/jobs/${ss.dataset.slidesave}/slides`, { slides }); editing = false; toast("Слайды перерисованы"); load(true); }
       catch (err) { toast(err.message); ss.disabled = false; }
       return;
+    }
+    const pk = t.closest("[data-pick]");
+    if (pk) { const [jid, n] = pk.dataset.pick.split("|"); openPicker(jid, n); return; }
+    const rm = t.closest("[data-rm]");
+    if (rm) {
+      const [jid, n] = rm.dataset.rm.split("|"), job = state.jobs.find(x => x.id === jid);
+      const list = srcs(job); list.splice(+n, 1);
+      return setPhotos(jid, list, "Фото убрано");
+    }
+    const mv = t.closest("[data-move]");
+    if (mv) {
+      const [jid, n, d] = mv.dataset.move.split("|"), job = state.jobs.find(x => x.id === jid);
+      const list = srcs(job), i = +n, k = i + +d;
+      if (k < 0 || k >= list.length) return;
+      [list[i], list[k]] = [list[k], list[i]];
+      return setPhotos(jid, list, "Порядок изменён");
     }
     const redo = t.closest("[data-redo]");
     if (redo) {
@@ -336,6 +396,43 @@
       load(true);
     } catch (err) { toast(err.message); b.disabled = false; }
   });
+
+  // ── выбор фото из библиотеки ──
+  let lib = null, pick = null;
+  const thumbUrl = (src) => `${API}/lib/${src.split("/").map(encodeURIComponent).join("/")}${token && API ? "?t=" + encodeURIComponent(token) : ""}`;
+  async function openPicker(jid, n) {
+    const job = state.jobs.find(x => x.id === jid);
+    if (!job) return;
+    pick = { jid, n, kind: job.kind };
+    $("pickTitle").textContent = n === "add" ? (job.kind === "ad" ? "Добавить фото или клип" : "Добавить фото") : `Заменить кадр ${+n + 1}`;
+    $("pickQ").value = ""; $("pickGrid").innerHTML = `<p class="hint">Загружаю библиотеку…</p>`;
+    $("pickDlg").showModal();
+    try {
+      if (!lib) lib = await (await fetch(API + "/api/library", { headers: hdr() })).json();
+      drawPicker();
+    } catch (e) { $("pickGrid").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  }
+  function drawPicker() {
+    const job = state.jobs.find(x => x.id === pick.jid), taken = new Set(srcs(job));
+    const q = $("pickQ").value.trim().toLowerCase();
+    const items = (lib.items || []).filter(x => (pick.kind === "ad" || !x.clip) && (!q || (x.desc + " " + x.src).toLowerCase().includes(q)));
+    const st = lib.status || {};
+    $("pickHint").textContent = `Показаны только разрешённые (${items.length})` + (st.banned ? ` — ${st.banned} фото скрыто по запретам бренда` : "")
+      + ". Сначала — которые реже были в постах. Наведите на фото — описание.";
+    $("pickGrid").innerHTML = items.map(x => `<button type="button" data-src="${esc(x.src)}" class="${taken.has(x.src) ? "taken" : ""}" title="${esc(x.desc)}${taken.has(x.src) ? " (уже в этом посте)" : ""}">
+        <img src="${thumbUrl(x.src)}" alt="${esc(x.desc)}" loading="lazy">${x.clip ? `<span class="c">🎬 ${x.dur} с</span>` : ""}<span class="u">было: ${x.used}</span></button>`).join("")
+      || `<p class="hint">Ничего не найдено.</p>`;
+  }
+  $("pickQ").oninput = () => lib && drawPicker();
+  $("pickClose").onclick = () => $("pickDlg").close();
+  $("pickGrid").onclick = async (e) => {
+    const b = e.target.closest("[data-src]");
+    if (!b || b.classList.contains("taken") || !pick) return;
+    const job = state.jobs.find(x => x.id === pick.jid), list = srcs(job);
+    if (pick.n === "add") list.push(b.dataset.src); else list[+pick.n] = b.dataset.src;
+    $("pickDlg").close();
+    await setPhotos(pick.jid, list, pick.n === "add" ? "Добавлено" : "Фото заменено");
+  };
 
   // ── идеи ──
   $("ideasBtn").onclick = () => $("ideasDlg").showModal();
@@ -366,7 +463,8 @@
   $("wHour").innerHTML = Array.from({ length: 24 }, (_, h) => `<option value="${h}">${pad(h)}:00</option>`).join("");
   $("setBtn").onclick = () => {
     const s = state?.settings || {}, w = s.weekly || {}, p = P();
-    $("wEnabled").checked = !!w.enabled; $("wCount").value = w.count; $("wKz").value = w.kz; $("wCb").value = w.clickbait;
+    $("wEnabled").checked = !!w.enabled; $("wCount").value = w.count; $("wVideo").value = w.video || 0; $("wKz").value = w.kz; $("wCb").value = w.clickbait;
+    $("pBanned").value = p.banned || "";
     $("wDay").value = w.weekday; $("wHour").value = w.hour;
     $("pIg").value = p.instagram || ""; $("pAbout").value = p.about || ""; $("pTopics").value = p.topics || "";
     $("pVoice").value = p.voice || ""; $("pTags").value = p.hashtags || ""; $("pTagsKz").value = p.hashtags_kz || "";
@@ -378,10 +476,11 @@
     try {
       await api("/api/settings", {
         browser_visible: $("sVis").checked,
-        weekly: { enabled: $("wEnabled").checked, count: +$("wCount").value, kz: +$("wKz").value, clickbait: +$("wCb").value,
+        weekly: { enabled: $("wEnabled").checked, count: +$("wCount").value, video: +$("wVideo").value, kz: +$("wKz").value, clickbait: +$("wCb").value,
                   weekday: +$("wDay").value, hour: +$("wHour").value },
         profile: { instagram: $("pIg").value, about: $("pAbout").value, topics: $("pTopics").value, voice: $("pVoice").value,
-                   hashtags: $("pTags").value, hashtags_kz: $("pTagsKz").value, story: $("pStory").checked } });
+                   hashtags: $("pTags").value, hashtags_kz: $("pTagsKz").value, banned: $("pBanned").value, story: $("pStory").checked } });
+      lib = null;
       $("setDlg").close(); toast("Сохранено"); load(true);
     } catch (e) { toast(e.message); }
   };
