@@ -167,7 +167,7 @@
     const mu = j.music || {}, st = state.music_styles || {};
     if (!photoEditable(j)) return mu.name ? `<div class="vinfo">🎵 ${esc(mu.name)}</div>` : "";
     return `<div class="when" style="margin:0 0 8px"><span class="hint">🎵 Музыка:</span>
-      <select data-music="${j.id}" ${mu.own ? "disabled title='Берутся ваши треки из library\\olizzi\\music'" : ""}>${Object.entries(st).map(([k, v]) => `<option value="${k}" ${mu.style === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>
+      <select data-music="${j.id}" ${mu.own ? "disabled title='Берутся ваши треки из папки library\\${esc(P().id)}\\music'" : ""}>${Object.entries(st).map(([k, v]) => `<option value="${k}" ${mu.style === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>
       <button class="btn ghost small" data-reroll="${j.id}" title="Завод сочинит другую мелодию в этом же стиле">🔀 другая мелодия</button>
       ${mu.own ? `<span class="hint">${esc(mu.name || "")}</span>` : ""}</div>`;
   }
@@ -284,7 +284,16 @@
       if (r.status === 401) { needLogin(); return; }
       $("offline").hidden = true;
       state = await r.json();
-      if (first) { first = false; drawForm(); $("story").checked = P().story !== false; }
+      if (first) {
+        first = false; drawForm(); $("story").checked = P().story !== false;
+        const ic = P().icon || "🫒", nm = P().name || "";
+        if (P().post_aspect) $("aspect").value = P().post_aspect;
+        document.title = "Контент-завод " + nm;
+        $("brandH1").textContent = `${ic} Контент-завод ${nm}`; $("brandH3").textContent = `${ic} Бренд — Claude читает это в каждом посте`;
+        $("authH2").textContent = `${ic} Контент-завод ${nm}`;
+        const fav = document.querySelector("link[rel=icon]");
+        if (fav) fav.href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>${ic}</text></svg>`;
+      }
       $("loginBtn").hidden = !!state.remote; $("logoutBtn").hidden = !state.remote;
       const tn = state.tunnel || {};
       $("netPill").hidden = !!state.remote || !tn.site;
