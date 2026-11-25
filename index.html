@@ -131,6 +131,21 @@
   .row-story { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
   .row-story .edit { flex: 1; margin: 0; }
   .wk p { margin: 4px 0; font-size: 13.5px; }
+  .asset .ab button:disabled { opacity: .4; cursor: default; }
+  .asset.add { display: flex; flex-direction: column; gap: 6px; align-items: stretch; justify-content: center; padding: 10px; border-style: dashed; aspect-ratio: auto; min-height: 120px; }
+  .asset.add button, .asset.add label { border: 1px solid var(--line); background: var(--card); border-radius: 8px; font-size: 12.5px; padding: 7px; cursor: pointer; text-align: center; color: var(--text); }
+  .asset .clipmark { position: absolute; left: 6px; top: 6px; background: rgba(0,0,0,.65); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 6px; }
+  .asset .media { position: relative; }
+  .vinfo { font-size: 12px; color: var(--muted); margin: -4px 0 8px; }
+  .pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; max-height: 62vh; overflow: auto; margin-top: 10px; padding: 2px; }
+  .pick-grid button { position: relative; border: 2px solid transparent; border-radius: 10px; padding: 0; background: var(--soft); cursor: pointer; overflow: hidden; aspect-ratio: 3/4; }
+  .pick-grid button:hover, .pick-grid button:focus-visible { border-color: var(--accent); }
+  .pick-grid button.taken { opacity: .35; cursor: default; }
+  .pick-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pick-grid .u { position: absolute; right: 4px; bottom: 4px; background: rgba(0,0,0,.65); color: #fff; font-size: 10.5px; padding: 1px 5px; border-radius: 5px; }
+  .pick-grid .c { position: absolute; left: 4px; top: 4px; background: rgba(0,0,0,.65); color: #fff; font-size: 10.5px; padding: 1px 5px; border-radius: 5px; }
+  .pick-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .pick-top input { flex: 1; min-width: 160px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--soft); color: var(--text); }
   .tag { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
 </style>
 <div class="wrap">
@@ -158,8 +173,9 @@
         </div>
         <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
         <p id="libInfo" class="hint"></p>
-        <label class="btn ghost small" for="libFile" style="display:inline-block;margin-top:4px">+ Фото в библиотеку</label>
-        <input type="file" id="libFile" accept="image/*" multiple class="vh">
+        <label class="btn ghost small" for="libFile" style="display:inline-block;margin-top:4px">+ Фото / видео в библиотеку</label>
+        <input type="file" id="libFile" accept="image/*,video/mp4,video/quicktime,video/webm" multiple class="vh">
+        <p class="hint" style="margin-top:6px">Видеоклипы бренда (mp4/mov, до 60 МБ) завод сам подгонит под Reels: 9:16, 1080×1920, до 6 сек на клип.</p>
       </section>
 
       <section class="card">
@@ -170,9 +186,9 @@
           <button data-kind="slides">📝 Карусель с текстом</button>
           <button data-kind="ad">🎬 Видео</button>
         </div>
-        <label class="f">Тема<input id="title" autocomplete="off" placeholder="Салат с Olizzi Basil за 5 минут"></label>
+        <label class="f">Тема<input id="title" autocomplete="off" placeholder="Салат с Olizzi Classic за 5 минут"></label>
         <label class="f">Что рассказать / пожелания
-          <textarea id="brief" rows="4" placeholder="Рецепт, акцент на аромат базилика, подача на летнем столе."></textarea></label>
+          <textarea id="brief" rows="4" placeholder="Рецепт, акцент на вкус масла, подача на летнем столе."></textarea></label>
         <label class="drop" id="drop" for="file">📷 Свои фото (необязательно) — нажмите, перетащите или вставьте<br>
           <span class="hint">без фото Claude сам подберёт их из библиотеки бренда</span>
           <input type="file" id="file" accept="image/*" multiple class="vh"></label>
@@ -207,7 +223,11 @@
   <label class="checks"><span><input type="checkbox" id="wEnabled">Каждую неделю готовить пачку постов</span></label>
   <div class="row2">
     <label class="f">Постов в неделю<input type="number" id="wCount" min="1" max="40"></label>
+    <label class="f">Из них видео (Reels)<input type="number" id="wVideo" min="0" max="40"></label>
+  </div>
+  <div class="row2">
     <label class="f">Из них на казахском<input type="number" id="wKz" min="0" max="40"></label>
+    <span></span>
   </div>
   <div class="row2">
     <label class="f">Кликбейтных<input type="number" id="wCb" min="0" max="40"></label>
@@ -223,6 +243,8 @@
   <label class="f">О бренде<textarea id="pAbout" rows="3"></textarea></label>
   <label class="f">Темы<textarea id="pTopics" rows="2"></textarea></label>
   <label class="f">Тон<input id="pVoice"></label>
+  <label class="f">⛔ Запреты — этого нет ни в текстах, ни на фото и видео<textarea id="pBanned" rows="4"></textarea></label>
+  <p class="hint" style="margin-top:-4px">После изменения Claude заново проверит всю библиотеку (несколько минут) — запрещённые фото пропадут из подбора.</p>
   <div class="row2">
     <label class="f">Хештеги (русские посты)<input id="pTags"></label>
     <label class="f">Хештеги (казахские посты)<input id="pTagsKz"></label>
@@ -231,6 +253,14 @@
   <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
   <label class="checks"><span><input type="checkbox" id="sVis">Показывать окно Chrome во время публикации (для отладки)</span></label>
   <div class="acts"><span class="grow"></span><button class="btn ghost small" id="sCancel">Закрыть</button><button class="btn small" id="sSave">Сохранить</button></div>
+</dialog>
+
+<dialog id="pickDlg" class="wide">
+  <div class="pick-top"><h2 style="margin:0" id="pickTitle">Выберите фото</h2><span class="grow"></span>
+    <input id="pickQ" placeholder="Поиск: салат, Classic, пикник, сбор урожая…" autocomplete="off">
+    <button class="btn ghost small" id="pickClose">Закрыть</button></div>
+  <p class="hint" id="pickHint" style="margin:6px 0 0"></p>
+  <div class="pick-grid" id="pickGrid"></div>
 </dialog>
 
 <dialog id="ideasDlg" class="wide">
@@ -266,7 +296,7 @@
   } catch (e) {}
   if (!api) { try { api = (await (await fetch("api.json?" + Date.now(), { cache: "no-store" })).json()).api || ""; } catch (e) {} }
   window.CF_API = api || "https://offline.invalid";
-  const s = document.createElement("script"); s.src = "app.js?v=261125125340"; document.body.appendChild(s);
+  const s = document.createElement("script"); s.src = "app.js?v=261125145038"; document.body.appendChild(s);
 })();
 </script>
 </body>
