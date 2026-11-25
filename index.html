@@ -150,7 +150,7 @@
 </style>
 <div class="wrap">
   <header>
-    <h1>🫒 Контент-завод Olizzi</h1>
+    <h1 id="brandH1">🫒 Контент-завод Olizzi</h1>
     <span class="pill" id="aiPill">Claude: …</span>
     <span class="pill" id="brPill">Браузер: …</span>
     <span class="pill" id="netPill" hidden></span>
@@ -186,9 +186,9 @@
           <button data-kind="slides">📝 Карусель с текстом</button>
           <button data-kind="ad">🎬 Видео</button>
         </div>
-        <label class="f">Тема<input id="title" autocomplete="off" placeholder="Салат с Olizzi Classic за 5 минут"></label>
+        <label class="f">Тема<input id="title" autocomplete="off" placeholder="О чём пост"></label>
         <label class="f">Что рассказать / пожелания
-          <textarea id="brief" rows="4" placeholder="Рецепт, акцент на вкус масла, подача на летнем столе."></textarea></label>
+          <textarea id="brief" rows="4" placeholder="Что важно сказать, на чём сделать акцент, для кого пост."></textarea></label>
         <label class="drop" id="drop" for="file">📷 Свои фото (необязательно) — нажмите, перетащите или вставьте<br>
           <span class="hint">без фото Claude сам подберёт их из библиотеки бренда</span>
           <input type="file" id="file" accept="image/*" multiple class="vh"></label>
@@ -238,7 +238,7 @@
   </div>
   <p class="hint" style="margin-top:-4px">Готовые посты ждут в «Запланировано» без даты — модератор ставит каждому день и время.</p>
   <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
-  <h3 style="font-size:14px;margin:0 0 8px">🫒 Бренд — Claude читает это в каждом посте</h3>
+  <h3 style="font-size:14px;margin:0 0 8px" id="brandH3">🫒 Бренд — Claude читает это в каждом посте</h3>
   <label class="f">Аккаунт Instagram<input id="pIg" placeholder="olizzi_kazakhstan"></label>
   <label class="f">О бренде<textarea id="pAbout" rows="3"></textarea></label>
   <label class="f">Темы<textarea id="pTopics" rows="2"></textarea></label>
@@ -275,7 +275,7 @@
 
 <dialog id="authDlg" style="width:min(360px,92vw)">
   <form id="authForm">
-    <h2>🫒 Контент-завод Olizzi</h2>
+    <h2 id="authH2">🫒 Контент-завод Olizzi</h2>
     <label class="f">Логин<input id="authUser" autocomplete="username" autocapitalize="off" required></label>
     <label class="f">Пароль<input id="authPass" type="password" autocomplete="current-password" required></label>
     <button class="btn wide" type="submit">Войти</button>
@@ -296,7 +296,7 @@
   } catch (e) {}
   if (!api) { try { api = (await (await fetch("api.json?" + Date.now(), { cache: "no-store" })).json()).api || ""; } catch (e) {} }
   window.CF_API = api || "https://offline.invalid";
-  const s = document.createElement("script"); s.src = "app.js?v=261125153152"; document.body.appendChild(s);
+  const s = document.createElement("script"); s.src = "app.js?v=261125162749"; document.body.appendChild(s);
 })();
 </script>
 </body>
